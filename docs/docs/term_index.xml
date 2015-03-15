@@ -237,6 +237,7 @@
          <term file="algorithms.html" name="square_root"                   include="dlib/algs.h"/>
          <term file="linear_algebra.html" name="vector"                    include="dlib/geometry.h"/>
          <term file="linear_algebra.html" name="point"                     include="dlib/geometry.h"/>
+         <term file="dlib/geometry/vector_abstract.h.html" name="dpoint"   include="dlib/geometry.h"/>
          <term file="linear_algebra.html" name="rotate_point"              include="dlib/geometry.h"/>
          <term file="linear_algebra.html" name="point_rotator"             include="dlib/geometry.h"/>
          <term file="linear_algebra.html" name="point_transform"           include="dlib/geometry.h"/>
@@ -413,6 +414,7 @@
          <term file="ml.html" name="find_clusters_using_kmeans"                     include="dlib/clustering.h"/>
          <term file="ml.html" name="nearest_center"                                 include="dlib/clustering.h"/>
          <term file="ml.html" name="newman_cluster"                                 include="dlib/clustering.h"/>
+         <term file="ml.html" name="spectral_cluster"                               include="dlib/clustering.h"/>
          <term file="ml.html" name="chinese_whispers"                               include="dlib/clustering.h"/>
          <term file="ml.html" name="modularity"                                     include="dlib/clustering.h"/>
          <term file="ml.html" name="pick_initial_centers"                           include="dlib/clustering.h"/>
@@ -1264,6 +1266,8 @@
          <term file="imaging.html" name="rotate_image"            include="dlib/image_transforms.h"/>
          <term file="imaging.html" name="resize_image"            include="dlib/image_transforms.h"/>
          <term file="imaging.html" name="extract_image_chips"     include="dlib/image_transforms.h"/>
+         <term file="imaging.html" name="sub_image"               include="dlib/image_transforms.h"/>
+         <term file="dlib/image_transforms/interpolation_abstract.h.html" name="sub_image_proxy"     include="dlib/image_transforms.h"/>
          <term file="dlib/image_transforms/interpolation_abstract.h.html" name="extract_image_chip"     include="dlib/image_transforms.h"/>
          <term file="dlib/image_transforms/interpolation_abstract.h.html" name="chip_details"           include="dlib/image_transforms.h"/>
          <term file="dlib/image_transforms/interpolation_abstract.h.html" name="get_face_chip_details"  include="dlib/image_transforms.h"/>
@@ -1497,6 +1501,7 @@
          <term file="dlib/logger/logger_kernel_abstract.h.html" name="set_all_logging_output_streams"    include="dlib/logger.h"/>
          <term file="dlib/logger/logger_kernel_abstract.h.html" name="set_all_logging_output_hooks"      include="dlib/logger.h"/>
          <term file="dlib/logger/logger_kernel_abstract.h.html" name="set_all_logging_levels"            include="dlib/logger.h"/>
+         <term file="dlib/logger/logger_kernel_abstract.h.html" name="set_all_logging_headers"           include="dlib/logger.h"/>
          <term file="dlib/logger/logger_kernel_abstract.h.html" name="print_default_logger_header"       include="dlib/logger.h"/>
          <term file="dlib/logger/extra_logger_headers.h.html" name="print_datetime_logger_header"        include="dlib/logger.h"/>
 

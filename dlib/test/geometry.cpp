@@ -646,6 +646,10 @@ namespace
             DLIB_TEST(length(t(from[i])-to[i]) < 1e-14);
             DLIB_TEST(length(tinv(t(from[i]))-from[i]) < 1e-14);
             DLIB_TEST(length(t(tinv(from[i]))-from[i]) < 1e-14);
+
+            point_transform_affine temp = t*inv(t);
+            DLIB_TEST(length(temp.get_b()) < 1e-14);
+            DLIB_TEST(max(abs(temp.get_m() - identity_matrix<double>(2))) < 1e-14);
         }
 
         ostringstream sout;
@@ -692,6 +696,11 @@ namespace
                 to_points.push_back(tran(p) + (randm(2,1,rnd)-0.5)*error_rate);
                 DLIB_TEST(length(traninv(tran(p))-p) <= 1e-5);
                 DLIB_TEST(length(tran(traninv(p))-p) <= 1e-5);
+
+                point_transform_projective temp = tran*traninv;
+                DLIB_TEST_MSG(max(abs(temp.get_m() - identity_matrix<double>(3))) < 1e-10, temp.get_m());
+                temp = traninv*tran;
+                DLIB_TEST_MSG(max(abs(temp.get_m() - identity_matrix<double>(3))) < 1e-10, temp.get_m());
             }
 
 
@@ -772,6 +781,30 @@ namespace
         }
     }
 
+
+// ----------------------------------------------------------------------------------------
+
+    void test_rect_to_drect()
+    {
+        print_spinner();
+        dlib::rand rnd;
+        for (int i = 0; i < 5000; ++i)
+        {
+            rectangle rect = centered_rect(rnd.get_random_32bit_number()%100,
+                rnd.get_random_32bit_number()%100,
+                rnd.get_random_32bit_number()%100,
+                rnd.get_random_32bit_number()%100);
+
+            drectangle drect = rect;
+            rectangle rect2 = drect;
+            DLIB_TEST(rect2 == rect);
+            DLIB_TEST(rect.width() == drect.width());
+            DLIB_TEST(rect.height() == drect.height());
+            DLIB_TEST(dcenter(rect) == dcenter(drect));
+            DLIB_TEST(rect.is_empty() == drect.is_empty());
+        }
+    }
+
 // ----------------------------------------------------------------------------------------
 
     class geometry_tester : public tester
@@ -786,6 +819,7 @@ namespace
         void perform_test (
         )
         {
+            test_rect_to_drect();
             geometry_test();
             test_border_enumerator();
             test_find_affine_transform();

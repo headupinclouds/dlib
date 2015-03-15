@@ -98,7 +98,7 @@ namespace dlib
             if (is_empty())
                 return 0;
             else
-                return r - l; 
+                return r - l + 1; 
         }
 
         double height (
@@ -107,7 +107,7 @@ namespace dlib
             if (is_empty())
                 return 0;
             else
-                return b - t; 
+                return b - t + 1; 
         }
 
         double area (
@@ -186,6 +186,15 @@ namespace dlib
             *this = *this*(1.0/scale);
             return *this;
         }
+
+        drectangle& operator += (
+            const dlib::vector<double,2>& p
+        )
+        {
+            *this = *this + drectangle(p);
+            return *this;
+        }
+
 
     private:
         double l;
@@ -296,10 +305,17 @@ namespace dlib
         const double& scale 
     )
     {
-        const double width = rect.width()*scale;
-        const double height = rect.height()*scale;
-        const dlib::vector<double,2> p = center(rect);
-        return drectangle(p.x()-width/2, p.y()-height/2, p.x()+width/2, p.y()+height/2);
+        if (!rect.is_empty())
+        {
+            const double width = (rect.right()-rect.left())*scale;
+            const double height = (rect.bottom()-rect.top())*scale;
+            const dlib::vector<double,2> p = center(rect);
+            return drectangle(p.x()-width/2, p.y()-height/2, p.x()+width/2, p.y()+height/2);
+        }
+        else
+        {
+            return rect;
+        }
     }
 
     inline drectangle operator* (
@@ -334,9 +350,10 @@ namespace dlib
         return r + drectangle(p);
     }
 
+    template <typename T>
     inline drectangle translate_rect (
         const drectangle& rect,
-        const dlib::vector<double,2>& p
+        const dlib::vector<T,2>& p
     )
     {
         drectangle result;
@@ -358,10 +375,13 @@ namespace dlib
 
     inline drectangle centered_drect (
         const dlib::vector<double,2>& p,
-        const double& width,
-        const double& height
+        double width,
+        double height
     )
     {
+        width--;
+        height--;
+
         return drectangle(p.x()-width/2, p.y()-height/2, p.x()+width/2, p.y()+height/2);
     }
 

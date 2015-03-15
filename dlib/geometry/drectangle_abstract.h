@@ -19,9 +19,9 @@ namespace dlib
             WHAT THIS OBJECT REPRESENTS
                 This object is just like dlib::rectangle except that it stores the
                 coordinates of the rectangle using double rather than long variables.  As
-                such, this object represents a rectangular region inside a Cartesian
-                coordinate system.  The region is the rectangle with its top left corner at
-                position (left(),top()) and its bottom right corner at (right(),bottom()).
+                such, this object represents a rectangular region inside an image.  The
+                region is the rectangle with its top left corner at position (left(),top())
+                and its bottom right corner at (right(),bottom()).
 
                 Note that the origin of the coordinate system, i.e. (0,0), is located at
                 the upper left corner.  That is, points such as (1,1) or (3,5) represent
@@ -95,14 +95,17 @@ namespace dlib
                 - top()    == rect.top()
                 - right()  == rect.right()
                 - bottom() == rect.bottom()
+                - dcenter(*this) == dcenter(rect)
+                - width() == rect.width()
+                - height() == rect.height()
         !*/
 
         operator rectangle (
         ) const;
         /*!
             ensures
-                - rounds the left, top, right, and bottom coordinates of *this to the
-                  nearest integers and returns the resulting rectangle.
+                - returns a rectangle where left(), top(), right(), and bottom() have been
+                  rounded to the nearest integer values.
         !*/
 
         double left (
@@ -205,7 +208,7 @@ namespace dlib
                     - returns 0
                 - else
                     - returns the width of this rectangle.
-                      (i.e. right() - left())
+                      (i.e. right() - left() + 1)
         !*/
 
         double height (
@@ -216,7 +219,7 @@ namespace dlib
                     - returns 0
                 - else
                     - returns the height of this rectangle.
-                      (i.e. bottom() - top())
+                      (i.e. bottom() - top() + 1)
         !*/
 
         double area (
@@ -307,6 +310,15 @@ namespace dlib
                 - returns #*this
         !*/
 
+        drectangle& operator += (
+            const dlib::vector<double,2>& p
+        );
+        /*!
+            ensures
+                - performs: *this = *this + drectangle(p)
+                - returns #*this
+        !*/
+
     };
 
 // ----------------------------------------------------------------------------------------
@@ -379,12 +391,12 @@ namespace dlib
     );
     /*!
         ensures
-            - This function returns a rectangle that has the same center as rect but with a
-              width and height that are scale times larger.  That is, we return a new
-              rectangle R such that:
+            - This function returns a rectangle that has the same center as rect but with
+              dimensions that are scale times larger.  That is, we return a new rectangle R
+              such that:
                 - center(R) == center(rect)
-                - R.width() == rect.width()*scale
-                - R.height() == rect.height()*scale
+                - R.right()-R.left() == (rect.right()-rect.left())*scale
+                - R.bottom()-R.top() == (rect.bottom()-rect.top())*scale
     !*/
 
 // ----------------------------------------------------------------------------------------
@@ -435,9 +447,10 @@ namespace dlib
 
 // ----------------------------------------------------------------------------------------
 
+    template <typename T>
     drectangle translate_rect (
         const drectangle& rect,
-        const vector<double,2>& p
+        const vector<T,2>& p
     );
     /*!
         ensures
@@ -474,20 +487,20 @@ namespace dlib
 
     drectangle centered_drect (
         const vector<double,2>& p,
-        const double& width,
-        const double& height
+        double width,
+        double height
     );
     /*!
         ensures
             - returns a rectangle R such that:
                 - center(R) == p
-                - if (width == 0 || height == 0)
+                - if (width < 1 || height < 1)
                     - R.width() == 0 
                     - R.height() == 0 
+                    - R.is_empty() == true
                 - else
                     - R.width() == width
                     - R.height() == height 
-                - R.tl_corner() == point(p.x()-width/2, p.y()-height/2)
     !*/
 
 // ----------------------------------------------------------------------------------------
