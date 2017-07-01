@@ -55,9 +55,9 @@ namespace dlib
             weight_decay_multiplier(1),
             bias_learning_rate_multiplier(1),
             bias_weight_decay_multiplier(0),
+            num_filters_(o.num_outputs),
             padding_y_(_padding_y),
-            padding_x_(_padding_x),
-            num_filters_(o.num_outputs)
+            padding_x_(_padding_x)
         {
             DLIB_CASSERT(num_filters_ > 0);
         }
@@ -118,6 +118,7 @@ namespace dlib
             weight_decay_multiplier(item.weight_decay_multiplier),
             bias_learning_rate_multiplier(item.bias_learning_rate_multiplier),
             bias_weight_decay_multiplier(item.bias_weight_decay_multiplier),
+            num_filters_(item.num_filters_),
             padding_y_(item.padding_y_),
             padding_x_(item.padding_x_)
         {
@@ -143,6 +144,7 @@ namespace dlib
             weight_decay_multiplier = item.weight_decay_multiplier;
             bias_learning_rate_multiplier = item.bias_learning_rate_multiplier;
             bias_weight_decay_multiplier = item.bias_weight_decay_multiplier;
+            num_filters_ = item.num_filters_;
             return *this;
         }
 

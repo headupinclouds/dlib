@@ -647,7 +647,7 @@ namespace dlib
         ) const
         {
             const tensor& output_tensor = sub.get_output();
-            DLIB_CASSERT(output_tensor.k() == options.detector_windows.size());
+            DLIB_CASSERT(output_tensor.k() == (long)options.detector_windows.size());
             DLIB_CASSERT(input_tensor.num_samples() == output_tensor.num_samples());
             DLIB_CASSERT(sub.sample_expansion_factor() == 1,  sub.sample_expansion_factor());
 
@@ -688,7 +688,7 @@ namespace dlib
             DLIB_CASSERT(sub.sample_expansion_factor() == 1);
             DLIB_CASSERT(input_tensor.num_samples() == grad.num_samples());
             DLIB_CASSERT(input_tensor.num_samples() == output_tensor.num_samples());
-            DLIB_CASSERT(output_tensor.k() == options.detector_windows.size());
+            DLIB_CASSERT(output_tensor.k() == (long)options.detector_windows.size());
 
 
 
@@ -877,7 +877,7 @@ namespace dlib
         ) const
         {
             DLIB_CASSERT(net.sample_expansion_factor() == 1,net.sample_expansion_factor());
-            DLIB_CASSERT(output_tensor.k() == options.detector_windows.size());
+            DLIB_CASSERT(output_tensor.k() == (long)options.detector_windows.size());
             const float* out_data = output_tensor.host() + output_tensor.k()*output_tensor.nr()*output_tensor.nc()*i;
             // scan the final layer and output the positive scoring locations
             dets_accum.clear();
@@ -910,7 +910,6 @@ namespace dlib
 
             // Figure out which detection window in options.detector_windows has the most
             // similar aspect ratio to rect.
-            const double aspect_ratio  = rect.width()/(double)rect.height();
             size_t best_i = 0;
             double best_ratio_diff = -std::numeric_limits<double>::infinity();
             for (size_t i = 0; i < options.detector_windows.size(); ++i)
@@ -1532,6 +1531,10 @@ namespace dlib
 
 // ----------------------------------------------------------------------------------------
 
+    class loss_multiclass_log_per_pixel_
+    {
+    public:
+
     // In semantic segmentation, if you don't know the ground-truth of some pixel,
     // set the label of that pixel to this value. When you do so, the pixel will be
     // ignored when computing gradients.
@@ -1566,12 +1569,15 @@ namespace dlib
             const float* const out_data = output_tensor.host();
 
             // The index of the largest output for each element is the label.
-            const auto find_label = [&](long sample, long r, long c) {
+            const auto find_label = [&](long sample, long r, long c) 
+            {
                 uint16_t label = 0;
                 float max_value = out_data[tensor_index(output_tensor, sample, r, c, 0)];
-                for (long k = 1; k < output_tensor.k(); ++k) {
+                for (long k = 1; k < output_tensor.k(); ++k) 
+                {
                     const float value = out_data[tensor_index(output_tensor, sample, r, c, k)];
-                    if (value > max_value) {
+                    if (value > max_value) 
+                    {
                         label = static_cast<uint16_t>(k);
                         max_value = value;
                     }
@@ -1579,10 +1585,13 @@ namespace dlib
                 return label;
             };
 
-            for (long i = 0; i < output_tensor.num_samples(); ++i, ++iter) {
+            for (long i = 0; i < output_tensor.num_samples(); ++i, ++iter) 
+            {
                 iter->set_size(output_tensor.nr(), output_tensor.nc());
-                for (long r = 0; r < output_tensor.nr(); ++r) {
-                    for (long c = 0; c < output_tensor.nc(); ++c) {
+                for (long r = 0; r < output_tensor.nr(); ++r) 
+                {
+                    for (long c = 0; c < output_tensor.nc(); ++c) 
+                    {
                         // The index of the largest output for this element is the label.
                         iter->operator()(r, c) = find_label(i, r, c);
                     }
