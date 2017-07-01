@@ -13,6 +13,11 @@ namespace dlib
     namespace cpu 
     {
 
+       const unsigned char UPSAMPLE_POINT = 1;
+       const unsigned char UPSAMPLE_LINEAR = 2;
+
+       const unsigned char PADDING_REFLECTION = 1;
+       const unsigned char PADDING_REPLICATION = 2;
     // -----------------------------------------------------------------------------------
 
         void multiply (
@@ -1846,6 +1851,360 @@ namespace dlib
             }
         }
      // ------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------
+
+ 
+        void tensor_upsample::backward(
+            tensor& output,
+            const tensor& data,
+            int scale_y,
+            int scale_x,
+            unsigned char method
+        )
+        {
+            DLIB_CASSERT(is_same_object(output,data) == false);
+            DLIB_CASSERT(output.k() == data.k());
+            DLIB_CASSERT(output.num_samples() == data.num_samples());
+            auto d = output.host();
+            switch(method)
+            {
+                case UPSAMPLE_POINT:
+                {
+                    for (long n = 0; n < data.num_samples(); ++n)
+                    {
+                        for (long k = 0; k < data.k(); k++)
+                        {
+                            auto srcPlane = image_plane(data,n,k);
+                            auto dstPlane = d + (n * output.k() + k)*output.nr()*output.nc();
+                            for (long r = 0; r < output.nr(); r++)
+                            {
+                                for (long c = 0; c < output.nc(); c++)
+                                {
+                                    for (int y=0; y < scale_y;  y++)
+                                        for (int x = 0; x < scale_x; x++)
+                                            dstPlane[r * output.nc() + c] +=
+                                                   srcPlane((r*scale_y+y) * data.nc() + (c*scale_x+x));
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+                case UPSAMPLE_LINEAR:
+                {
+                    for (long n = 0; n < data.num_samples(); ++n)
+                    {
+                        for (long k = 0; k < data.k(); k++)
+                        {
+                            auto srcPlane = image_plane(data,n,k);
+                            auto dstPlane = d + (n * output.k() + k)*output.nr()*output.nc();
+                            for (long r = 0; r < output.nr(); r++)
+                            {
+                                for (long c = 0; c < output.nc(); c++)
+                                {
+                                    for (int y=0; y < scale_y;  y++)
+                                    {
+                                        float yWeight = 1.0f - float(y) / float(scale_y);
+                                        for (int x = 0; x < scale_x; x++)
+                                        {
+                                            float xWeight = 1.0f - float(x)/float(scale_x);
+                                            dstPlane[r * output.nc() + c] += yWeight * xWeight *
+                                                   srcPlane((r*scale_y+y) * data.nc() + (c*scale_x+x));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }            
+                }
+                break;
+                default:
+                {
+                    for (long n = 0; n < data.num_samples(); ++n)
+                    {
+                        for (long k = 0; k < data.k(); k++)
+                        {
+                            auto srcPlane = image_plane(data,n,k);
+                            auto dstPlane = d + (n * output.k() + k)*output.nr()*output.nc();
+                            for (long r = 0; r < output.nr(); r++)
+                               for (long c = 0; c < output.nc(); c++)
+                               {
+                                    dstPlane[r * output.nc() + c] +=
+                                      srcPlane(r*scale_y*data.nc() + c * scale_x);
+                               }
+                        }
+                    }
+                }
+            }
+        }
+ 
+    // ------------------------------------------------------------------------------------
+
+        void tensor_upsample::forward(
+            resizable_tensor& output,
+            const tensor& data,
+            int scale_y,
+            int scale_x,
+            unsigned char method
+        )
+        {
+           DLIB_CASSERT(is_same_object(output,data) == false); 
+           DLIB_CASSERT(output.k() == data.k());
+           DLIB_CASSERT(output.num_samples() == data.num_samples());      
+           output = 0;           
+           auto d = output.host();
+           
+           switch(method)
+           {
+               case UPSAMPLE_POINT:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();                  
+                          for (long r = 0; r < output.nr(); r++)
+                          {
+                              long srcR = r / scale_y;
+                              for (long c = 0; c < output.nc(); c++)
+                              {
+                                  long srcC = c / scale_x;
+                                  dstPlane[r * output.nc() + c] = srcPlane(srcR*data.nc()+srcC);
+                              }
+                          }
+                       }
+                   }
+               }
+               break;
+               case UPSAMPLE_LINEAR:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();                  
+                          for (long r = 0; r < output.nr(); r++)
+                          {
+                              float yWeight = float(r)/float(scale_y)-(int)(r/scale_y);
+                              long srcR = r / scale_y;
+                              long srcRn = srcR+1;
+
+                              if (srcRn > data.nr()-1)
+                                   srcRn = data.nr()-1;
+
+                              for (long c = 0; c < output.nc(); c++)
+                              {
+                                  float xWeight =  float(c)/float(scale_x)-(int)(c/scale_x);
+                                  long srcC = c / scale_x;
+                                  long srcCn = srcC+1;
+                                  if (srcCn > data.nc()-1)
+                                      srcCn = data.nc()-1;
+                                  float value0 = srcPlane(srcR*data.nc()+srcC);
+                                  float value1 = srcPlane(srcR*data.nc()+srcCn);
+                                  float value2 = srcPlane(srcRn*data.nc()+srcC);
+                                  float value3 = srcPlane(srcRn*data.nc()+srcCn);
+                                  dstPlane[r * output.nc() + c] = 
+                                    (1.0-yWeight) * ((1.0-xWeight) * value0 + xWeight * value1) +
+                                     yWeight * ((1.0-xWeight) * value2 + xWeight * value3);                            
+                              }
+                          }
+                       }
+                   }
+               }
+               break;
+               default:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                           auto srcPlane = image_plane(data,n,k);
+                           auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();
+                           for (long r = 0; r < data.nr(); r++)
+                           {
+                               long destR = r * scale_y;
+                               for (long c = 0; c < data.nc(); c++)
+                               {
+                                   long destC = c * scale_x;
+                                   dstPlane[destR * output.nc() + destC] = srcPlane(r*data.nc()+c);
+                               }
+                           }                  
+                       }
+                   }
+               }
+           }
+       }
+
+    // ------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------
+
+        void tensor_padding::backward(
+            tensor& output,
+            const tensor& data,
+            int padding_y,
+            int padding_x,
+            unsigned char method
+        )
+        {
+            DLIB_CASSERT(is_same_object(output,data) == false);
+            DLIB_CASSERT(output.k() == data.k());
+            DLIB_CASSERT(output.num_samples() == data.num_samples());
+            auto d = output.host();
+            switch(method)
+            {
+                default:
+                {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();                  
+                          for (long r = 0; r < data.nr(); r++)
+                          {
+                              for (long c = 0; c < data.nc(); c++)
+                              {
+                                  dstPlane[r * output.nc() + c] = srcPlane((r + padding_y) *data.nc()+(c + padding_x));
+                              }
+                          }
+                       }
+                   }
+                }
+            }
+        }
+
+
+    // ------------------------------------------------------------------------------------
+
+        void tensor_padding::forward(
+            resizable_tensor& output,
+            const tensor& data,
+            int padding_y,
+            int padding_x,
+            unsigned char method
+        )
+        {
+           DLIB_CASSERT(is_same_object(output,data) == false); 
+           DLIB_CASSERT(output.k() == data.k());
+           DLIB_CASSERT(output.num_samples() == data.num_samples());      
+           output = 0;           
+           auto d = output.host();
+           
+           switch(method)
+           {
+               case PADDING_REFLECTION:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();
+                          for (long r = 0; r < padding_y; r++)
+                          {
+                             int srcR = (padding_y - 1 - r);
+                             int srcR2 = data.nr() - r - 1;
+                             for (long c = 0; c < data.nc(); c++)
+                             {
+                                dstPlane[r * output.nc() + c + padding_x] = srcPlane(srcR * data.nc() + c); 
+                                dstPlane[(r + padding_y + data.nr()) * output.nc() + c + padding_x] = srcPlane(srcR2 * data.nc() + c);
+                             }
+                             for (long c = 0; c < padding_x; c++)
+                             {
+                                int srcC = (padding_x -1 - c);
+                                int srcC2 = data.nc() - c - 1;                                
+                                dstPlane[r * output.nc() + c] = srcPlane(srcR * data.nc() + srcC); 
+                                dstPlane[(r + padding_y + data.nr()) * output.nc() + c] = srcPlane(srcR2 * data.nc() + srcC);
+                                dstPlane[r * output.nc() + data.nc() + padding_x + c] = srcPlane(srcR * data.nc() + srcC2); 
+                                dstPlane[(r + padding_y + data.nr()) * output.nc() + data.nc() + padding_x + c] = srcPlane(srcR2 * data.nc() + srcC2);
+
+                             }
+                          }                  
+                          for (long r = 0; r < data.nr(); r++)
+                          {
+                              for (long c = 0; c < data.nc(); c++)
+                              {
+                                  dstPlane[(r + padding_y) * output.nc() + padding_x + c] = srcPlane(r*data.nc()+c);
+                              }
+                              for (long c = 0; c < padding_x; c++)
+                              {
+                                  int srcC = (padding_x -1 - c);
+                                  int srcC2 = data.nc() - c - 1;                                
+                                  dstPlane[(r + padding_y) * output.nc() + c] = srcPlane(r*data.nc()+srcC);
+                                  dstPlane[(r + padding_y) * output.nc() + data.nc() + padding_x + c] = srcPlane(r*data.nc()+srcC2);
+
+                              }
+                          }
+                       }
+                   }
+               }
+               break;
+               case PADDING_REPLICATION:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();                  
+                          for (long r = 0; r < output.nr(); r++)
+                          {
+                              int srcR = r;
+                              if (srcR < padding_y)
+                                  srcR = 0;
+                              else
+                                  srcR = r - padding_y;
+                              if (srcR > data.nr() - 1)
+                                  srcR = data.nr() -1;
+                              for (long c = 0; c < output.nc(); c++)
+                              {
+                                  int srcC = c;
+                                  if (srcC < padding_x)
+                                      srcC = 0;
+                                  else
+                                      srcC = c - padding_x;
+                                  if (srcC > data.nc() -1)
+                                      srcC = data.nc() - 1;
+                                  dstPlane[r * output.nc() + c] = srcPlane(srcR*data.nc()+srcC);
+                              }
+                          }
+                      }
+                   }
+               }
+               break;
+               default:
+               {
+                   // need to treat each sample individual
+                   for (long n = 0; n < data.num_samples(); ++n)
+                   {
+                       for (long k = 0; k < data.k(); k++)
+                       {
+                          auto srcPlane = image_plane(data,n,k);
+                          auto dstPlane = d + (n*output.k() + k)*output.nr()*output.nc();                  
+                          for (long r = 0; r < data.nr(); r++)
+                          {
+                              for (long c = 0; c < data.nc(); c++)
+                              {
+                                  dstPlane[(r + padding_y) * output.nc() + padding_x + c] = srcPlane(r*data.nc()+c);
+                              }
+                          }
+                       }
+                   }
+               }
+           }
+       }
+
+    // ------------------------------------------------------------------------------------
     void copy_tensor(
             tensor& dest,
             size_t dest_k_offset,

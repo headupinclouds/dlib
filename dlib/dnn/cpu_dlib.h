@@ -425,6 +425,66 @@ namespace dlib
 
     // -----------------------------------------------------------------------------------
 
+        class tensor_upsample
+        {
+        public:
+            tensor_upsample(const tensor_upsample&) = delete;
+            tensor_upsample& operator=(const tensor_upsample&) = delete;
+
+            tensor_upsample() {}
+
+            void forward(
+                resizable_tensor& output,
+                const tensor& data,
+                int scale_y,
+                int scale_x,
+                unsigned char method
+            );
+
+            void backward (
+                tensor& output,            
+                const tensor& data, 
+                int scale_y,
+                int scale_x,
+                unsigned char method
+            );
+ 
+        private:
+
+        };
+
+    // -----------------------------------------------------------------------------------
+
+        class tensor_padding
+        {
+        public:
+            tensor_padding(const tensor_padding&) = delete;
+            tensor_padding& operator=(const tensor_padding&) = delete;
+
+            tensor_padding() {}
+
+            void forward(
+                resizable_tensor& output,
+                const tensor& data,
+                int padding_y,
+                int padding_x,
+                unsigned char method
+            );
+
+            void backward (
+                tensor& output,            
+                const tensor& data, 
+                int padding_y,
+                int padding_x,
+                unsigned char method
+            );
+ 
+        private:
+
+        };
+
+    // -----------------------------------------------------------------------------------
+
         void copy_tensor(
             tensor& dest,
             size_t dest_k_offset,
