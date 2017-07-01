@@ -1533,16 +1533,13 @@ namespace dlib
 
     class loss_multiclass_log_per_pixel_
     {
-    public:
+        public:
 
-    // In semantic segmentation, if you don't know the ground-truth of some pixel,
-    // set the label of that pixel to this value. When you do so, the pixel will be
-    // ignored when computing gradients.
-    static const uint16_t label_to_ignore = std::numeric_limits<uint16_t>::max();
+        // In semantic segmentation, if you don't know the ground-truth of some pixel,
+        // set the label of that pixel to this value. When you do so, the pixel will be
+        // ignored when computing gradients.
+        static const uint16_t label_to_ignore = std::numeric_limits<uint16_t>::max();
 
-    class loss_multiclass_log_per_pixel_
-    {
-    public:
 
         // In semantic segmentation, 65535 classes ought to be enough for anybody.
         typedef matrix<uint16_t> training_label_type;
