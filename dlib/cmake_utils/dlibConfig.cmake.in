@@ -28,16 +28,21 @@ if(NOT TARGET dlib-shared AND NOT dlib_BINARY_DIR)
    include("${dlib_CMAKE_DIR}/dlib.cmake")
 endif()
 
-set(dlib_LIBRARIES dlib::dlib)
-set(dlib_LIBS      dlib::dlib)
+find_library(dlib_LIBRARIES dlib HINTS "@CMAKE_INSTALL_FULL_LIBDIR@")
+set(dlib_LIBRARIES ${dlib_LIBRARIES} "@dlib_needed_libraries@")
+set(dlib_LIBS      ${dlib_LIBRARIES} "@dlib_needed_libraries@")
 set(dlib_INCLUDE_DIRS "@CMAKE_INSTALL_FULL_INCLUDEDIR@" "@dlib_needed_includes@")
 
 include(CMakeFindDependencyMacro) 
 
-if("@PNG_FOUND@")
-  find_dependency(PNG CONFIG)
+if(@DLIB_PNG_SUPPORT@)
+  find_package(PNG CONFIG REQUIRED)
 endif()
 
-if("@JPEG_FOUND@")
-  find_dependency(JPEG CONFIG)
+if(@DLIB_JPEG_SUPPORT@)
+  find_package(JPEG CONFIG REQUIRED)
+endif()
+
+if(@DLIB_GIF_SUPPORT@)
+  find_package(giflib CONFIG REQUIRED)
 endif()

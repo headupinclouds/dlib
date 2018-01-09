@@ -21,20 +21,22 @@ include(cmake_utils/use_cpp_11.cmake)
 
 set(CPACK_PACKAGE_VERSION_MAJOR "19")
 set(CPACK_PACKAGE_VERSION_MINOR "8")
-set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_VERSION_PATCH "99")
 set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH})
 # Set DLIB_VERSION in the including CMake file so they can use it to do whatever they want. 
 
-if(NOT HUNTER_ENABLED)
-  get_directory_property(has_parent PARENT_DIRECTORY)
-  if(has_parent)
-    set(DLIB_VERSION ${VERSION} PARENT_SCOPE)
-    if (NOT DEFINED DLIB_IN_PROJECT_BUILD)
-      set(DLIB_IN_PROJECT_BUILD true)
-    endif()
+get_directory_property(has_parent PARENT_DIRECTORY)
+if(has_parent)
+  set(DLIB_VERSION ${VERSION} PARENT_SCOPE)
+  if (NOT DEFINED DLIB_IN_PROJECT_BUILD)
+    set(DLIB_IN_PROJECT_BUILD true)
   endif()
 endif()
 
+if(HUNTER_ENABLED)
+  set(DLIB_IN_PROJECT_BUILD false)
+endif()
+  
 if (CMAKE_VERSION VERSION_LESS "3.9.0")
    # Set only because there are old target_link_libraries() statements in the
    # FindCUDA.cmake file that comes with CMake that error out if the new behavior
@@ -351,155 +353,30 @@ if (NOT TARGET dlib)
       INCLUDE (CheckFunctionExists)
 
       if (DLIB_GIF_SUPPORT)
-         find_package(GIF QUIET)
-         if (GIF_FOUND)
-            set (dlib_needed_includes ${dlib_needed_includes} ${GIF_INCLUDE_DIR})
-            set (dlib_needed_libraries ${dlib_needed_libraries} ${GIF_LIBRARY})
-         else()
-            set(DLIB_GIF_SUPPORT OFF CACHE STRING ${DLIB_GIF_SUPPORT_STR} FORCE )
-            toggle_preprocessor_switch(DLIB_GIF_SUPPORT)
-         endif()
+        hunter_add_package(giflib)
+        find_package(giflib CONFIG REQUIRED)
+        list(APPEND dlib_needed_libraries giflib::giflib)
       endif()
-
+      
       if (DLIB_PNG_SUPPORT)
-         # try to find libpng
-         hunter_add_package(PNG)
-         find_package(PNG QUIET)
-         # Make sure there isn't something wrong with the version of LIBPNG
-         # installed on this system.  
-         if (PNG_FOUND)
-            set(CMAKE_REQUIRED_LIBRARIES ${PNG_LIBRARIES})
-            CHECK_FUNCTION_EXISTS(png_create_read_struct LIBPNG_IS_GOOD)
-         endif()
-         if (PNG_FOUND AND LIBPNG_IS_GOOD)
-            include_directories(${PNG_INCLUDE_DIR})
-            set (dlib_needed_libraries ${dlib_needed_libraries} ${PNG_LIBRARIES})
-            set(REQUIRES_LIBS " libpng")
-         else()
-            # If we can't find libpng then statically compile it in.
-            include_directories(external/libpng external/zlib)
-            set(source_files ${source_files}
-               external/libpng/png.c
-               external/libpng/pngerror.c
-               external/libpng/pngget.c
-               external/libpng/pngmem.c
-               external/libpng/pngpread.c
-               external/libpng/pngread.c
-               external/libpng/pngrio.c
-               external/libpng/pngrtran.c
-               external/libpng/pngrutil.c
-               external/libpng/pngset.c
-               external/libpng/pngtrans.c
-               external/libpng/pngwio.c
-               external/libpng/pngwrite.c
-               external/libpng/pngwtran.c
-               external/libpng/pngwutil.c
-               external/zlib/adler32.c
-               external/zlib/compress.c
-               external/zlib/crc32.c
-               external/zlib/deflate.c
-               external/zlib/gzclose.c
-               external/zlib/gzlib.c
-               external/zlib/gzread.c
-               external/zlib/gzwrite.c
-               external/zlib/infback.c
-               external/zlib/inffast.c
-               external/zlib/inflate.c
-               external/zlib/inftrees.c
-               external/zlib/trees.c
-               external/zlib/uncompr.c
-               external/zlib/zutil.c
-               )
-
-            include(cmake_utils/check_if_neon_available.cmake)
-            if (ARM_NEON_IS_AVAILABLE)
-               message (STATUS "NEON instructions will be used for libpng.")
-               enable_language(ASM)
-               set(source_files ${source_files}
-                  external/libpng/arm/arm_init.c
-                  external/libpng/arm/filter_neon_intrinsics.c
-                  external/libpng/arm/filter_neon.S
-                  )
-               set_source_files_properties(external/libpng/arm/filter_neon.S PROPERTIES COMPILE_FLAGS "${CMAKE_ASM_FLAGS} ${CMAKE_CXX_FLAGS} -x assembler-with-cpp")
-            endif()
-            set(REQUIRES_LIBS "")
-         endif()
-         set(source_files ${source_files}
-            image_loader/png_loader.cpp
-            image_saver/save_png.cpp
-            )
+        hunter_add_package(PNG)
+        find_package(PNG CONFIG REQUIRED)
+        list(APPEND dlib_needed_libraries PNG::png)
+        set(source_files ${source_files}
+          image_loader/png_loader.cpp
+          image_saver/save_png.cpp
+          )
       endif()
 
       if (DLIB_JPEG_SUPPORT)
-         # try to find libjpeg
-         hunter_add_package(Jpeg)
-         find_package(JPEG QUIET)
-         # Make sure there isn't something wrong with the version of libjpeg 
-         # installed on this system.  Also don't use the installed libjpeg
-         # if this is an APPLE system because apparently it's broken (as of 2015/01/01).
-         if (JPEG_FOUND AND NOT ("${JPEG_INCLUDE_DIR}" MATCHES "(.*)(Ana|ana|mini)conda(.*)"))
-            set(CMAKE_REQUIRED_LIBRARIES ${JPEG_LIBRARY})
-            CHECK_FUNCTION_EXISTS(jpeg_read_header LIBJPEG_IS_GOOD)
-         endif()
-         if (JPEG_FOUND AND LIBJPEG_IS_GOOD AND (HUNTER_ENABLE OR (NOT APPLE)))
-            include_directories(${JPEG_INCLUDE_DIR})
-            set (dlib_needed_libraries ${dlib_needed_libraries} ${JPEG_LIBRARY})
-         else()
-            # If we can't find libjpeg then statically compile it in.
-            add_definitions(-DDLIB_JPEG_STATIC)
-            set(source_files ${source_files}
-                  external/libjpeg/jcomapi.cpp
-                  external/libjpeg/jdapimin.cpp
-                  external/libjpeg/jdapistd.cpp
-                  external/libjpeg/jdatasrc.cpp
-                  external/libjpeg/jdcoefct.cpp
-                  external/libjpeg/jdcolor.cpp
-                  external/libjpeg/jddctmgr.cpp
-                  external/libjpeg/jdhuff.cpp
-                  external/libjpeg/jdinput.cpp
-                  external/libjpeg/jdmainct.cpp
-                  external/libjpeg/jdmarker.cpp
-                  external/libjpeg/jdmaster.cpp
-                  external/libjpeg/jdmerge.cpp
-                  external/libjpeg/jdphuff.cpp
-                  external/libjpeg/jdpostct.cpp
-                  external/libjpeg/jdsample.cpp
-                  external/libjpeg/jerror.cpp
-                  external/libjpeg/jidctflt.cpp
-                  external/libjpeg/jidctfst.cpp
-                  external/libjpeg/jidctint.cpp
-                  external/libjpeg/jidctred.cpp
-                  external/libjpeg/jmemmgr.cpp
-                  external/libjpeg/jmemnobs.cpp
-                  external/libjpeg/jquant1.cpp
-                  external/libjpeg/jquant2.cpp
-                  external/libjpeg/jutils.cpp  
-                  external/libjpeg/jcapimin.cpp
-                  external/libjpeg/jdatadst.cpp
-                  external/libjpeg/jcparam.cpp
-                  external/libjpeg/jcapistd.cpp
-                  external/libjpeg/jcmarker.cpp
-                  external/libjpeg/jcinit.cpp
-                  external/libjpeg/jcmaster.cpp
-                  external/libjpeg/jcdctmgr.cpp
-                  external/libjpeg/jccoefct.cpp  
-                  external/libjpeg/jccolor.cpp  
-                  external/libjpeg/jchuff.cpp  
-                  external/libjpeg/jcmainct.cpp  
-                  external/libjpeg/jcphuff.cpp  
-                  external/libjpeg/jcprepct.cpp  
-                  external/libjpeg/jcsample.cpp
-                  external/libjpeg/jfdctint.cpp
-                  external/libjpeg/jfdctflt.cpp
-                  external/libjpeg/jfdctfst.cpp
-                  )
-         endif()
-         set(source_files ${source_files}
-            image_loader/jpeg_loader.cpp
-            image_saver/save_jpeg.cpp
-            )
+        hunter_add_package(Jpeg)
+        find_package(JPEG CONFIG REQUIRED)
+        list(APPEND dlib_needed_libraries JPEG::jpg)
+        set(source_files ${source_files}
+          image_loader/jpeg_loader.cpp
+          image_saver/save_jpeg.cpp
+          )
       endif()
-
 
       if (DLIB_USE_BLAS OR DLIB_USE_LAPACK OR DLIB_USE_MKL_FFT)
           # Try to find BLAS, LAPACK and MKL
@@ -724,7 +601,6 @@ if (NOT TARGET dlib)
       target_compile_options(dlib PRIVATE ${active_preprocessor_switches})
    endif()
 
-
    # Allow the unit tests to ask us to compile the all/source.cpp file just to make sure it compiles.
    if (DLIB_TEST_COMPILE_ALL_SOURCE_CPP)
       add_library(dlib_all_source_cpp STATIC all/source.cpp) 
@@ -747,19 +623,11 @@ if (NOT TARGET dlib)
        set (LIB_INSTALL_DIR lib CACHE STRING "Install location of libraries (e.g. lib32 or lib64 for multilib installations)")
        cmake_minimum_required(VERSION 2.8.8)
 
-       if(BUILD_SHARED_LIBS)
-           install(TARGETS dlib
-                   EXPORT dlib 
-                   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # Windows (including cygwin) considers .dll to be runtime artifacts
-                   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-       else()
-           install(TARGETS dlib
-                   EXPORT dlib 
-                   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # Windows considers .dll to be runtime artifacts
-                   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-       endif()
+       install(TARGETS dlib
+         EXPORT dlib 
+         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # Windows considers .dll to be runtime artifacts
+         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
        install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dlib
                FILES_MATCHING PATTERN "*.h" PATTERN "*.cmake"
@@ -802,6 +670,20 @@ if (NOT TARGET dlib)
 
    endif()
 
+endif()
+
+if (MSVC)
+   # Give the output library files names that are unique functions of the
+   # visual studio mode that compiled them.  We do this so that people who
+   # compile dlib and then copy the .lib files around (which they shouldn't be
+   # doing in the first place!) will hopefully be slightly less confused by
+   # what happens since, at the very least, the filenames will indicate what
+   # visual studio runtime they go with.
+   math(EXPR numbits ${CMAKE_SIZEOF_VOID_P}*8)
+   set_target_properties(dlib PROPERTIES DEBUG_POSTFIX "_debug_${numbits}bit_msvc${MSVC_VERSION}")
+   set_target_properties(dlib PROPERTIES RELEASE_POSTFIX "_release_${numbits}bit_msvc${MSVC_VERSION}")
+   set_target_properties(dlib PROPERTIES MINSIZEREL_POSTFIX "_minsizerel_${numbits}bit_msvc${MSVC_VERSION}")
+   set_target_properties(dlib PROPERTIES RELWITHDEBINFO_POSTFIX "_relwithdebinfo_${numbits}bit_msvc${MSVC_VERSION}")
 endif()
 
 add_library(dlib::dlib ALIAS dlib)
