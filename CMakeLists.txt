@@ -10,7 +10,7 @@ HunterGate(
     SHA1 "9086d4b3c32784effdd6f83f45125b55cf95aae8"
 )
 
-project(dlib VERSION 19.6)
+project(dlib VERSION 19.8)
 
 if(DLIB_HEADER_ONLY)
   add_library(dlib INTERFACE)
