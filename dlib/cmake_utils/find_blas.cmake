@@ -76,33 +76,30 @@ if (UNIX OR MINGW)
       return()
    endif()
 
-   include(CheckTypeSize)
-   check_type_size( "void*" SIZE_OF_VOID_PTR)
+   if (NOT CMAKE_CROSSCOMPILING)
+      include(CheckTypeSize)
+      check_type_size( "void*" SIZE_OF_VOID_PTR)
 
-   if (SIZE_OF_VOID_PTR EQUAL 8)
-      set( mkl_search_path
-         /opt/intel/mkl/*/lib/em64t
-         /opt/intel/mkl/lib/intel64
-         /opt/intel/lib/intel64
-         /opt/intel/mkl/lib
-         /opt/intel/tbb/*/lib/em64t/gcc4.7
-         /opt/intel/tbb/lib/intel64/gcc4.7
-         /opt/intel/tbb/lib/gcc4.7
-         )
+      if (SIZE_OF_VOID_PTR EQUAL 8)
+         set( mkl_search_path
+            /opt/intel/mkl/*/lib/em64t
+            /opt/intel/mkl/lib/intel64
+            /opt/intel/lib/intel64
+            /opt/intel/mkl/lib
+            )
 
-      find_library(mkl_intel mkl_intel_lp64 ${mkl_search_path})
-      mark_as_advanced(mkl_intel)
-   else()
-      set( mkl_search_path
-         /opt/intel/mkl/*/lib/32
-         /opt/intel/mkl/lib/ia32
-         /opt/intel/lib/ia32
-         /opt/intel/tbb/*/lib/32/gcc4.7
-         /opt/intel/tbb/lib/ia32/gcc4.7
-         )
+         find_library(mkl_intel mkl_intel_lp64 ${mkl_search_path})
+         mark_as_advanced(mkl_intel)
+      else()
+         set( mkl_search_path
+            /opt/intel/mkl/*/lib/32
+            /opt/intel/mkl/lib/ia32
+            /opt/intel/lib/ia32
+            )
 
-      find_library(mkl_intel mkl_intel ${mkl_search_path})
-      mark_as_advanced(mkl_intel)
+         find_library(mkl_intel mkl_intel ${mkl_search_path})
+         mark_as_advanced(mkl_intel)
+      endif()
    endif()
 
    include(CheckLibraryExists)
@@ -192,7 +189,14 @@ if (UNIX OR MINGW)
    INCLUDE (CheckFunctionExists)
 
    if (NOT blas_found)
-      find_library(cblas_lib openblas PATHS ${extra_paths})
+      # Hunter OpenBLAS not supported on these hosts/platforms for 0.2.20 or lower
+      if (IOS OR CMAKE_HOST_WIN32 OR WIN32)
+         find_library(cblas_lib openblas PATHS ${extra_paths})
+      else()
+         hunter_add_package(OpenBLAS)
+         find_package(OpenBLAS CONFIG REQUIRED)
+         set(cblas_lib OpenBLAS::OpenBLAS)
+      endif()
       if (cblas_lib)
          set(blas_libraries ${cblas_lib})
          set(blas_found 1)
